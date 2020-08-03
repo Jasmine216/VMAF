@@ -42,7 +42,7 @@
 #define ansnr_mse          ansnr_mse_s
 #define offset_image       offset_image_s
 
-int compute_ansnr(const float *ref, const float *dis, int w, int h, int ref_stride, int dis_stride, double *score, double *score_psnr, double peak, double psnr_max)
+int compute_ansnr(const float *ref, const float *dis,const float *obj, int w, int h, int ref_stride, int dis_stride,int obj_stride, double *score, double *score_psnr, double peak, double psnr_max)
 {
     float *data_buf = 0;
     char *data_top;

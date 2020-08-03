@@ -54,7 +54,7 @@ void apply_frame_differencing(const float *current_frame, const float *previous_
     }
 }
 
-int compute_vif(const float *ref, const float *dis, int w, int h, int ref_stride, int dis_stride,
+int compute_vif(const float *ref, const float *dis,const float *obj, int w, int h, int ref_stride, int dis_stride,int obj_stride,
         double *score, double *score_num, double *score_den, double *scores, double vif_enhn_gain_limit)
 {
     float *data_buf = 0;
@@ -215,7 +215,7 @@ int compute_vif(const float *ref, const float *dis, int w, int h, int ref_stride
         vif_filter2d(filter, dis_sq, dis_sq_filt, w, h, buf_stride, buf_stride, filter_width);
         vif_filter2d(filter, ref_dis, ref_dis_filt, w, h, buf_stride, buf_stride, filter_width);
 #endif
-		vif_statistic(mu1, mu2, NULL, ref_sq_filt, dis_sq_filt, ref_dis_filt, num_array, den_array,
+		vif_statistic(mu1, mu2, NULL,obj, ref_sq_filt, dis_sq_filt, ref_dis_filt, num_array, den_array,
 			w, h, buf_stride, buf_stride, buf_stride, buf_stride, buf_stride, buf_stride, buf_stride, buf_stride,
 			vif_enhn_gain_limit);
         mu1_adj = ADJUST(mu1);
@@ -359,6 +359,7 @@ int vifdiff(int (*read_frame)(float *ref_data, float *main_data, float *temp_dat
         fflush(stdout);
         goto fail_or_end;
     }
+    
     if (!(temp_buf = aligned_malloc(data_sz * 2, MAX_ALIGN)))
     {
         printf("error: aligned_malloc failed for temp_buf.\n");
@@ -369,7 +370,7 @@ int vifdiff(int (*read_frame)(float *ref_data, float *main_data, float *temp_dat
     int frm_idx = 0;
     while (1)
     {
-        ret = read_frame(ref_buf, dis_buf, temp_buf, stride, user_data);
+        ret = read_frame(ref_buf, dis_buf,temp_buf, stride, user_data);
 
         if(ret == 1){
             goto fail_or_end;
@@ -413,7 +414,7 @@ int vifdiff(int (*read_frame)(float *ref_data, float *main_data, float *temp_dat
 		else
 		{
             // compute
-            if ((ret = compute_vif(ref_diff_buf, dis_diff_buf, w, h, stride, stride,
+            if ((ret = compute_vif(ref_diff_buf, dis_diff_buf,0, w, h, stride, stride,stride,
                     &score, &score_num, &score_den, scores, DEFAULT_VIF_ENHN_GAIN_LIMIT)))
             {
                 printf("error: compute_vifdiff failed.\n");
@@ -447,6 +448,7 @@ fail_or_end:
     aligned_free(dis_buf);
     aligned_free(dis_diff_buf);
     aligned_free(prev_dis_buf);
+
     aligned_free(temp_buf);
 
     return ret;

@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "mem.h"
+#include "/Users/jessica/CMT309/vmaf/libvmaf/src/mem.h"
 #include "adm_options.h"
 #include "adm_tools.h"
 #include "offset.h"
@@ -67,7 +67,7 @@ static char *init_dwt_band_hvd(adm_dwt_band_t *band, char *data_top, size_t buf_
 	return data_top;
 }
 
-int compute_adm(const float *ref, const float *dis, int w, int h, int ref_stride, int dis_stride, double *score,
+int compute_adm(const float *ref, const float *dis,float *obj,int w, int h, int ref_stride, int dis_stride,int obj_stride,  double *score,
         double *score_num, double *score_den, double *scores, double border_factor, double adm_enhn_gain_limit)
 {
 #ifdef ADM_OPT_SINGLE_PRECISION
@@ -180,11 +180,11 @@ int compute_adm(const float *ref, const float *dis, int w, int h, int ref_stride
 		adm_decouple(&ref_dwt2, &dis_dwt2, &decouple_r, &decouple_a, w, h,
 		        buf_stride, buf_stride, buf_stride, buf_stride, border_factor, adm_enhn_gain_limit);
 
-		den_scale = adm_csf_den_scale(&ref_dwt2, orig_h, scale, w, h, buf_stride, border_factor);
+		den_scale = adm_csf_den_scale(&ref_dwt2,obj, orig_h, scale, w, h, buf_stride, border_factor);
 
 		adm_csf(&decouple_a, &csf_a, &csf_f, orig_h, scale, w, h, buf_stride, buf_stride, border_factor);
 	
-		num_scale = adm_cm(&decouple_r, &csf_f, &csf_a, w, h, buf_stride, buf_stride, buf_stride, border_factor, scale);
+		num_scale = adm_cm(&decouple_r,obj, &csf_f, &csf_a, w, h, buf_stride, buf_stride, buf_stride, border_factor, scale);
 
 #ifdef ADM_OPT_DEBUG_DUMP
 		sprintf(pathbuf, "stage/ref[%d]_a.yuv", scale);

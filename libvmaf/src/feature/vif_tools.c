@@ -215,7 +215,7 @@ void vif_xx_yy_xy_s(const float *x, const float *y, float *xx, float *yy, float 
     }
 }
 
-void vif_statistic_s(const float *mu1, const float *mu2, const float *mu1_mu2, const float *xx_filt, const float *yy_filt, const float *xy_filt, float *num, float *den,
+void vif_statistic_s(const float *mu1, const float *mu2, const float *mu1_mu2, const float *obj, const float *xx_filt, const float *yy_filt, const float *xy_filt, float *num, float *den,
 	int w, int h, int mu1_stride, int mu2_stride, int mu1_mu2_stride, int xx_filt_stride, int yy_filt_stride, int xy_filt_stride, int num_stride, int den_stride,
 	double vif_enhn_gain_limit)
 {
@@ -230,7 +230,7 @@ void vif_statistic_s(const float *mu1, const float *mu2, const float *mu1_mu2, c
 
 	float mu1_sq_val, mu2_sq_val, mu1_mu2_val, xx_filt_val, yy_filt_val, xy_filt_val;
 	float sigma1_sq, sigma2_sq, sigma12;
-	float num_val, den_val;
+	float num_val, den_val,obj_,p=0.7;
 	int i, j;
 
     /* ==== vif_stat_mode = 'matching_c' ==== */
@@ -320,9 +320,9 @@ void vif_statistic_s(const float *mu1, const float *mu2, const float *mu1_mu2, c
             }
 
             /* == end of vif_stat_mode = 'matching_matlab' == */
-
-            accum_inner_num += num_val;
-			accum_inner_den += den_val;
+            obj_ = obj[i * mu1_px_stride+j]/255;
+            accum_inner_num += (num_val*(p+(1-p)*obj_));
+			accum_inner_den += (den_val*(p+(1-p)*obj_));
 		}
 
 		accum_num += accum_inner_num;

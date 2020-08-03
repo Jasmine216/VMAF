@@ -88,7 +88,7 @@ static int flush(VmafFeatureExtractor *fex,
 }
 
 static int extract(VmafFeatureExtractor *fex,
-                   VmafPicture *ref_pic, VmafPicture *dist_pic,
+                   VmafPicture *ref_pic, VmafPicture *dist_pic, VmafPicture *obj_pic,
                    unsigned index, VmafFeatureCollector *feature_collector)
 {
     MotionState *s = fex->priv;

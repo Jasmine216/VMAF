@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "feature_collector.h"
 #include "feature_extractor.h"
@@ -30,6 +31,7 @@ typedef struct AnsnrState {
     size_t float_stride;
     float *ref;
     float *dist;
+    float *obj;
     double peak;
     double psnr_max;
 } AnsnrState;
@@ -43,6 +45,8 @@ static int init(VmafFeatureExtractor *fex, enum VmafPixelFormat pix_fmt,
     if (!s->ref) goto fail;
     s->dist = aligned_malloc(s->float_stride * h, 32);
     if (!s->dist) goto free_ref;
+    s->obj = aligned_malloc(s->float_stride * h, 32);
+
 
     s->peak = bpc == 8 ? 255.0 : 255.75;
     s->psnr_max = bpc == 8 ? 60.0 : 72.0;
@@ -56,27 +60,32 @@ static int init(VmafFeatureExtractor *fex, enum VmafPixelFormat pix_fmt,
 }
 
 static int extract(VmafFeatureExtractor *fex,
-                   VmafPicture *ref_pic, VmafPicture *dist_pic,
+                   VmafPicture *ref_pic, VmafPicture *dist_pic,VmafPicture *obj_pic,
                    unsigned index, VmafFeatureCollector *feature_collector)
 {
     AnsnrState *s = fex->priv;
     int err = 0;
-
+fprintf(stderr, "\nstart extract ansnr\n"); 
     picture_copy(s->ref, s->float_stride, ref_pic, -128, ref_pic->bpc);
     picture_copy(s->dist, s->float_stride, dist_pic, -128, dist_pic->bpc);
+    picture_copy(s->obj, s->float_stride, obj_pic, -128,obj_pic->bpc);
 
     double score, score_psnr;
-    err = compute_ansnr(s->ref, s->dist, ref_pic->w[0], ref_pic->h[0],
-                        s->float_stride, s->float_stride, &score, &score_psnr,
+    err = compute_ansnr(s->ref, s->dist, s->obj, ref_pic->w[0], ref_pic->h[0],
+                        s->float_stride, s->float_stride,s->float_stride, &score, &score_psnr,
                         s->peak, s->psnr_max);
 
-    if (err) return err;
+    if (err)
+	{
+	fprintf(stderr, "\ncomput ansnr error\n"); 
+	return err;}
     err = vmaf_feature_collector_append(feature_collector, "float_ansnr",
                                         score, index);
     if (err) return err;
     err = vmaf_feature_collector_append(feature_collector, "float_anpsnr",
                                         score_psnr, index);
     if (err) return err;
+	fprintf(stderr, "\nansnr collector success! \n");
     return 0;
 }
 
@@ -85,6 +94,7 @@ static int close(VmafFeatureExtractor *fex)
     AnsnrState *s = fex->priv;
     if (s->ref) aligned_free(s->ref);
     if (s->dist) aligned_free(s->dist);
+    if (s->obj) aligned_free(s->obj);
     return 0;
 }
 

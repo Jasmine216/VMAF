@@ -19,7 +19,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <string.h>
-#include "mem.h"
+#include "/Users/jessica/CMT309/vmaf/libvmaf/src/mem.h"
 #include "adm_options.h"
 #include "adm_tools.h"
 
@@ -231,7 +231,7 @@ void adm_decouple_s(const adm_dwt_band_t_s *ref, const adm_dwt_band_t_s *dis,
 	}
 }
 
-void adm_csf_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *dst, const adm_dwt_band_t_s *flt, int orig_h, int scale, int w, int h, int src_stride, int dst_stride, double border_factor)
+void adm_csf_s(const adm_dwt_band_t_s *src,const adm_dwt_band_t_s *dst, const adm_dwt_band_t_s *flt, int orig_h, int scale, int w, int h, int src_stride, int dst_stride, double border_factor)
 {
 	const float *src_angles[3] = { src->band_h, src->band_v, src->band_d };
 	float *dst_angles[3] = { dst->band_h, dst->band_v, dst->band_d };
@@ -282,6 +282,7 @@ void adm_csf_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *dst, const a
 			dst_offset = i * dst_px_stride;
 
 			for (j = left; j < right; ++j) {
+                //float obj_ = obj[i * src_offset+j]/255;
 				dst_val = rfactor[theta] * src_ptr[src_offset + j];
 				dst_ptr[dst_offset + j] = dst_val;
 				flt_ptr[dst_offset + j] = FLOAT_ONE_BY_30 * fabsf(dst_val);
@@ -291,7 +292,7 @@ void adm_csf_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *dst, const a
 }
 
 /* Combination of adm_csf_s and adm_sum_cube_s for csf_o based den_scale */
-float adm_csf_den_scale_s(const adm_dwt_band_t_s *src, int orig_h, int scale, int w, int h, int src_stride, double border_factor)
+float adm_csf_den_scale_s(const adm_dwt_band_t_s *src,const float *obj, int orig_h, int scale, int w, int h, int src_stride, double border_factor)
 {
 	float *src_h = src->band_h, *src_v = src->band_v, *src_d = src->band_d;
 
@@ -301,11 +302,11 @@ float adm_csf_den_scale_s(const adm_dwt_band_t_s *src, int orig_h, int scale, in
 	// 1 to 4 (from finest scale to coarsest scale).
 	float factor1 = dwt_quant_step(&dwt_7_9_YCbCr_threshold[0], scale, 1);
 	float factor2 = dwt_quant_step(&dwt_7_9_YCbCr_threshold[0], scale, 2);
-	float rfactor[3] = { 1.0f / factor1, 1.0f / factor1, 1.0f / factor2 };
+	float rfactor[3] = { 1.0f / factor1, 1.0f / factor1, 1.0f / factor2 }; //CSF=1/Q
 
 	float accum_h = 0, accum_v = 0, accum_d = 0;
 	float accum_inner_h, accum_inner_v, accum_inner_d;
-	float den_scale_h, den_scale_v, den_scale_d;
+	float den_scale_h, den_scale_v, den_scale_d,obj_,p=0.7;
 
 	float val;
 	
@@ -325,9 +326,10 @@ float adm_csf_den_scale_s(const adm_dwt_band_t_s *src, int orig_h, int scale, in
 		src_v = src->band_v + i * src_px_stride;
 		src_d = src->band_d + i * src_px_stride;
 		for (j = left; j < right; ++j) {
-			float abs_csf_o_val_h = fabsf(rfactor[0] * src_h[j]);
-			float abs_csf_o_val_v = fabsf(rfactor[1] * src_v[j]);
-			float abs_csf_o_val_d = fabsf(rfactor[2] * src_d[j]);
+            obj_ = obj[i * src_px_stride+j]/255;
+			float abs_csf_o_val_h = fabsf(rfactor[0] * src_h[j]*(p+(1-p)*obj_));
+			float abs_csf_o_val_v = fabsf(rfactor[1] * src_v[j]*(p+(1-p)*obj_));
+			float abs_csf_o_val_d = fabsf(rfactor[2] * src_d[j]*(p+(1-p)*obj_));
 
 			val = abs_csf_o_val_h * abs_csf_o_val_h * abs_csf_o_val_h;
 			accum_inner_h += val;
@@ -351,7 +353,7 @@ float adm_csf_den_scale_s(const adm_dwt_band_t_s *src, int orig_h, int scale, in
 
 }
 
-float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const adm_dwt_band_t_s *csf_a, int w, int h, int src_stride, int flt_stride, int csf_a_stride, double border_factor, int scale)
+float adm_cm_s(const adm_dwt_band_t_s *src,const float *obj, const adm_dwt_band_t_s *csf_f, const adm_dwt_band_t_s *csf_a, int w, int h, int src_stride, int flt_stride, int csf_a_stride, double border_factor, int scale)
 {
 	/* Take decouple_r as src and do dsf_s on decouple_r here to get csf_r */
 	float *src_h = src->band_h, *src_v = src->band_v, *src_d = src->band_d;
@@ -369,7 +371,7 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 	int flt_px_stride = flt_stride / sizeof(float);
 	int csf_px_stride = csf_a_stride / sizeof(float);
 
-	float xh, xv, xd, thr;
+	float xh, xv, xd, thr,obj_,p=0.65;
 
 	float val;
 	float accum_h = 0, accum_v = 0, accum_d = 0;
@@ -395,14 +397,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 	accum_inner_d = 0;
 	if ((top <= 0) && (left <= 0))
 	{
+        obj_ = obj[0]/255;
 		xh = src->band_h[0] * rfactor[0];
 		xv = src->band_v[0] * rfactor[1];
 		xd = src->band_d[0] * rfactor[2];
 		ADM_CM_THRESH_S_0_0(angles, flt_angles, csf_px_stride, &thr, w, h, 0, 0);
 
-		xh = fabsf(xh) - thr;
-		xv = fabsf(xv) - thr;
-		xd = fabsf(xd) - thr;
+		xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+		xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+		xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 		xh = xh < 0.0f ? 0.0f : xh;
 		xv = xv < 0.0f ? 0.0f : xv;
@@ -420,14 +423,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 	/* i=0, j */
 	if (top <= 0) {
 		for (j = start_col; j < end_col; ++j) {
+            obj_ = obj[j]/255;
 			xh = src->band_h[j] * rfactor[0];
 			xv = src->band_v[j] * rfactor[1];
 			xd = src->band_d[j] * rfactor[2];
 			ADM_CM_THRESH_S_0_J(angles, flt_angles, csf_px_stride, &thr, w, h, 0, j);
 
-			xh = fabsf(xh) - thr;
-			xv = fabsf(xv) - thr;
-			xd = fabsf(xd) - thr;
+			xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+			xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+			xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 			xh = xh < 0.0f ? 0.0f : xh;
 			xv = xv < 0.0f ? 0.0f : xv;
@@ -446,14 +450,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 	/* i=0,j=w-1 */
 	if ((top <= 0) && (right > (w - 1)))
 	{
+        obj_ = obj[w-1]/255;
 		xh = src->band_h[w - 1] * rfactor[0];
 		xv = src->band_v[w - 1] * rfactor[1];
 		xd = src->band_d[w - 1] * rfactor[2];
 		ADM_CM_THRESH_S_0_W_M_1(angles, flt_angles, csf_px_stride, &thr, w, h, 0, (w - 1));
 
-		xh = fabsf(xh) - thr;
-		xv = fabsf(xv) - thr;
-		xd = fabsf(xd) - thr;
+		xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+		xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+		xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 		xh = xh < 0.0f ? 0.0f : xh;
 		xv = xv < 0.0f ? 0.0f : xv;
@@ -479,14 +484,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 			accum_inner_v = 0;
 			accum_inner_d = 0;
 		for (j = start_col; j < end_col; ++j) {
+                obj_ = obj[i * src_px_stride + j]/255;
 				xh = src->band_h[i * src_px_stride + j] * rfactor[0];
 				xv = src->band_v[i * src_px_stride + j] * rfactor[1];
 				xd = src->band_d[i * src_px_stride + j] * rfactor[2];
 				ADM_CM_THRESH_S_I_J(angles, flt_angles, csf_px_stride, &thr, w, h, i, j);
 
-			xh = fabsf(xh) - thr;
-			xv = fabsf(xv) - thr;
-			xd = fabsf(xd) - thr;
+			xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+			xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+			xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 			xh = xh < 0.0f ? 0.0f : xh;
 			xv = xv < 0.0f ? 0.0f : xv;
@@ -513,15 +519,16 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 			accum_inner_d = 0;
 
 			/* j = 0 */
+            obj_ = obj[i * src_px_stride]/255;
 			xh = src->band_h[i * src_px_stride] * rfactor[0];
 			xv = src->band_v[i * src_px_stride] * rfactor[1];
 			xd = src->band_d[i * src_px_stride] * rfactor[2];
 			ADM_CM_THRESH_S_I_0(angles, flt_angles, csf_px_stride, &thr, w, h, i, 0);
 
 
-			xh = fabsf(xh) - thr;
-			xv = fabsf(xv) - thr;
-			xd = fabsf(xd) - thr;
+			xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+			xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+			xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 			xh = xh < 0.0f ? 0.0f : xh;
 			xv = xv < 0.0f ? 0.0f : xv;
@@ -536,14 +543,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 
 			/* j within frame */
 			for (j = start_col; j < end_col; ++j) {
+                obj_ = obj[i * src_px_stride+j]/255;
 				xh = src->band_h[i * src_px_stride + j] * rfactor[0];
 				xv = src->band_v[i * src_px_stride + j] * rfactor[1];
 				xd = src->band_d[i * src_px_stride + j] * rfactor[2];
 				ADM_CM_THRESH_S_I_J(angles, flt_angles, csf_px_stride, &thr, w, h, i, j);
 
-				xh = fabsf(xh) - thr;
-				xv = fabsf(xv) - thr;
-				xd = fabsf(xd) - thr;
+				xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+				xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+				xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 				xh = xh < 0.0f ? 0.0f : xh;
 				xv = xv < 0.0f ? 0.0f : xv;
@@ -570,14 +578,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 			accum_inner_d = 0;
 			/* j within frame */
 			for (j = start_col; j < end_col; ++j) {
+                obj_ = obj[i * src_px_stride+j]/255;
 				xh = src->band_h[i * src_px_stride + j] * rfactor[0];
 				xv = src->band_v[i * src_px_stride + j] * rfactor[1];
 				xd = src->band_d[i * src_px_stride + j] * rfactor[2];
 				ADM_CM_THRESH_S_I_J(angles, flt_angles, csf_px_stride, &thr, w, h, i, j);
 
-				xh = fabsf(xh) - thr;
-				xv = fabsf(xv) - thr;
-				xd = fabsf(xd) - thr;
+				xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+				xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+				xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 				xh = xh < 0.0f ? 0.0f : xh;
 				xv = xv < 0.0f ? 0.0f : xv;
@@ -592,14 +601,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 
 			}
 			/* j = w-1 */
+            obj_ = obj[i * src_px_stride+w-1]/255;
 			xh = src->band_h[i * src_px_stride + w - 1] * rfactor[0];
 			xv = src->band_v[i * src_px_stride + w - 1] * rfactor[1];
 			xd = src->band_d[i * src_px_stride + w - 1] * rfactor[2];
 			ADM_CM_THRESH_S_I_W_M_1(angles, flt_angles, csf_px_stride, &thr, w, h, i, (w - 1));
 
-			xh = fabsf(xh) - thr;
-			xv = fabsf(xv) - thr;
-			xd = fabsf(xd) - thr;
+			xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+			xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+			xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 			xh = xh < 0.0f ? 0.0f : xh;
 			xv = xv < 0.0f ? 0.0f : xv;
@@ -625,14 +635,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 	accum_inner_d = 0;
 
 			/* j = 0 */
+            obj_ = obj[i * src_px_stride]/255;
 			xh = src->band_h[i * src_px_stride] * rfactor[0];
 			xv = src->band_v[i * src_px_stride] * rfactor[1];
 			xd = src->band_d[i * src_px_stride] * rfactor[2];
 			ADM_CM_THRESH_S_I_0(angles, flt_angles, csf_px_stride, &thr, w, h, i, 0);
 
-			xh = fabsf(xh) - thr;
-			xv = fabsf(xv) - thr;
-			xd = fabsf(xd) - thr;
+			xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+			xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+			xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 			xh = xh < 0.0f ? 0.0f : xh;
 			xv = xv < 0.0f ? 0.0f : xv;
@@ -647,14 +658,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 
 			/* j within frame */
 			for (j = start_col; j < end_col; ++j) {
+                obj_ = obj[i * src_px_stride+j]/255;
 				xh = src->band_h[i * src_px_stride + j] * rfactor[0];
 				xv = src->band_v[i * src_px_stride + j] * rfactor[1];
 				xd = src->band_d[i * src_px_stride + j] * rfactor[2];
 				ADM_CM_THRESH_S_I_J(angles, flt_angles, csf_px_stride, &thr, w, h, i, j);
 
-				xh = fabsf(xh) - thr;
-				xv = fabsf(xv) - thr;
-				xd = fabsf(xd) - thr;
+				xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+				xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+				xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 				xh = xh < 0.0f ? 0.0f : xh;
 				xv = xv < 0.0f ? 0.0f : xv;
@@ -669,14 +681,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 
 			}
 			/* j = w-1 */
+            obj_ = obj[i * src_px_stride+w-1]/255;
 			xh = src->band_h[i * src_px_stride + w - 1] * rfactor[0];
 			xv = src->band_v[i * src_px_stride + w - 1] * rfactor[1];
 			xd = src->band_d[i * src_px_stride + w - 1] * rfactor[2];
 			ADM_CM_THRESH_S_I_W_M_1(angles, flt_angles, csf_px_stride, &thr, w, h, i, (w - 1));
 
-		xh = fabsf(xh) - thr;
-		xv = fabsf(xv) - thr;
-		xd = fabsf(xd) - thr;
+		xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+		xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+		xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 		xh = xh < 0.0f ? 0.0f : xh;
 		xv = xv < 0.0f ? 0.0f : xv;
@@ -701,14 +714,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 	/* i=h-1,j=0 */
 	if ((bottom > (h - 1)) && (left <= 0))
 	{
+        obj_ = obj[(h - 1) * src_px_stride]/255;
 		xh = src->band_h[(h - 1) * src_px_stride] * rfactor[0];
 		xv = src->band_v[(h - 1) * src_px_stride] * rfactor[1];
 		xd = src->band_d[(h - 1) * src_px_stride] * rfactor[2];
 		ADM_CM_THRESH_S_H_M_1_0(angles, flt_angles, csf_px_stride, &thr, w, h, (h - 1), 0);
 
-		xh = fabsf(xh) - thr;
-		xv = fabsf(xv) - thr;
-		xd = fabsf(xd) - thr;
+		xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+		xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+		xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 		xh = xh < 0.0f ? 0.0f : xh;
 		xv = xv < 0.0f ? 0.0f : xv;
@@ -726,14 +740,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 	/* i=h-1,j */
 	if (bottom > (h - 1)) {
 		for (j = start_col; j < end_col; ++j) {
+            obj_ = obj[(h - 1) * src_px_stride + j]/255;
 			xh = src->band_h[(h - 1) * src_px_stride + j] * rfactor[0];
 			xv = src->band_v[(h - 1) * src_px_stride + j] * rfactor[1];
 			xd = src->band_d[(h - 1) * src_px_stride + j] * rfactor[2];
 			ADM_CM_THRESH_S_H_M_1_J(angles, flt_angles, csf_px_stride, &thr, w, h, (h - 1), j);
 
-			xh = fabsf(xh) - thr;
-			xv = fabsf(xv) - thr;
-			xd = fabsf(xd) - thr;
+			xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+			xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+			xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 			xh = xh < 0.0f ? 0.0f : xh;
 			xv = xv < 0.0f ? 0.0f : xv;
@@ -752,14 +767,15 @@ float adm_cm_s(const adm_dwt_band_t_s *src, const adm_dwt_band_t_s *csf_f, const
 	/* i-h-1,j=w-1 */
 	if ((bottom > (h - 1)) && (right > (w - 1)))
 	{
+        obj_ = obj[(h - 1) * src_px_stride + w - 1]/255;
 		xh = src->band_h[(h - 1) * src_px_stride + w - 1] * rfactor[0];
 		xv = src->band_v[(h - 1) * src_px_stride + w - 1] * rfactor[1];
 		xd = src->band_d[(h - 1) * src_px_stride + w - 1] * rfactor[2];
 		ADM_CM_THRESH_S_H_M_1_W_M_1(angles, flt_angles, csf_px_stride, &thr, w, h, (h - 1), (w - 1));
 
-			xh = fabsf(xh) - thr;
-			xv = fabsf(xv) - thr;
-			xd = fabsf(xd) - thr;
+			xh = (fabsf(xh) - thr)*(p+(1-p)*obj_);
+			xv = (fabsf(xv) - thr)*(p+(1-p)*obj_);
+			xd = (fabsf(xd) - thr)*(p+(1-p)*obj_);
 
 			xh = xh < 0.0f ? 0.0f : xh;
 			xv = xv < 0.0f ? 0.0f : xv;

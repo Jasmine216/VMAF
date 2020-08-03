@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <string.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #include "feature_collector.h"
 #include "feature_extractor.h"
@@ -32,6 +33,7 @@ typedef struct AdmState {
     size_t float_stride;
     float *ref;
     float *dist;
+    float *obj;
     bool debug;
     double adm_enhn_gain_limit;
 } AdmState;
@@ -65,6 +67,7 @@ static int init(VmafFeatureExtractor *fex, enum VmafPixelFormat pix_fmt,
     if (!s->ref) goto fail;
     s->dist = aligned_malloc(s->float_stride * h, 32);
     if (!s->dist) goto free_ref;
+    s->obj = aligned_malloc(s->float_stride * h, 32);
 
     return 0;
 
@@ -75,7 +78,7 @@ fail:
 }
 
 static int extract(VmafFeatureExtractor *fex,
-                   VmafPicture *ref_pic, VmafPicture *dist_pic,
+                   VmafPicture *ref_pic, VmafPicture *dist_pic,VmafPicture *obj_pic,
                    unsigned index, VmafFeatureCollector *feature_collector)
 {
     AdmState *s = fex->priv;
@@ -83,14 +86,17 @@ static int extract(VmafFeatureExtractor *fex,
 
     picture_copy(s->ref, s->float_stride, ref_pic, -128, ref_pic->bpc);
     picture_copy(s->dist, s->float_stride, dist_pic, -128, dist_pic->bpc);
-
+    picture_copy(s->obj, s->float_stride, obj_pic, -128, obj_pic->bpc);
+    
     double score, score_num, score_den;
     double scores[8];
-    err = compute_adm(s->ref, s->dist, ref_pic->w[0], ref_pic->h[0],
-                      s->float_stride, s->float_stride, &score, &score_num,
+    err = compute_adm(s->ref, s->dist,s->obj, ref_pic->w[0], ref_pic->h[0],
+                      s->float_stride, s->float_stride,s->float_stride, &score, &score_num,
                       &score_den, scores, ADM_BORDER_FACTOR, s->adm_enhn_gain_limit);
-    if (err) return err;
-
+    if (err) 
+	{fprintf(stderr, "\ncpmpute adm error \n");
+	return err;}
+fprintf(stderr, "\nstart adm collector \n");
     err = vmaf_feature_collector_append(feature_collector,
                                         "'VMAF_feature_adm2_score'",
                                         score, index);
@@ -112,7 +118,7 @@ static int extract(VmafFeatureExtractor *fex,
                                         "adm_scale3",
                                         scores[6] / scores[7], index);
     if (err) return err;
-
+fprintf(stderr, "\nadm collector success! \n");
     if (s->debug) {
         err = vmaf_feature_collector_append(feature_collector,"adm", score, index);
         if (err) return err;
@@ -146,6 +152,7 @@ static int close(VmafFeatureExtractor *fex)
     AdmState *s = fex->priv;
     if (s->ref) aligned_free(s->ref);
     if (s->dist) aligned_free(s->dist);
+    if (s->obj) aligned_free(s->obj);
     return 0;
 }
 

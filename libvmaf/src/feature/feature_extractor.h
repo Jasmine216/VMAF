@@ -58,7 +58,7 @@ typedef struct VmafFeatureExtractor {
      * @param feature_collector VmafFeatureCollector used to write out scores.
      */
     int (*extract)(struct VmafFeatureExtractor *fex,
-                   VmafPicture *ref_pic, VmafPicture *dist_pic,
+                   VmafPicture *ref_pic, VmafPicture *dist_pic,VmafPicture *obj_pic,
                    unsigned index, VmafFeatureCollector *feature_collector);
     /**
      * Buffer flush callback. Optional.
@@ -104,7 +104,7 @@ int vmaf_feature_extractor_context_init(VmafFeatureExtractorContext *fex_ctx,
                                         unsigned bpc, unsigned w, unsigned h);
 
 int vmaf_feature_extractor_context_extract(VmafFeatureExtractorContext *fex_ctx,
-                                           VmafPicture *ref, VmafPicture *dist,
+                                           VmafPicture *ref, VmafPicture *dist,VmafPicture *obj,
                                            unsigned pic_index,
                                            VmafFeatureCollector *vfc);
 

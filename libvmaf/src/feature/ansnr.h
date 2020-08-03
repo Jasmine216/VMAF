@@ -16,6 +16,6 @@
  *
  */
 
-int compute_ansnr(const float *ref, const float *dis, int w, int h,
-        int ref_stride, int dis_stride,
+int compute_ansnr(const float *ref, const float *dis, const float *obj,int w, int h,
+        int ref_stride, int dis_stride, int obj_stride,
         double *score, double *score_psnr, double peak, double psnr_max);
