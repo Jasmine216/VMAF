@@ -52,6 +52,7 @@ def main():
     print_result = cmd_option_exists(sys.argv, 3, len(sys.argv), '--print-result')
     suppress_plot = cmd_option_exists(sys.argv, 3, len(sys.argv), '--suppress-plot')
     vmaf_phone_model = cmd_option_exists(sys.argv, 3, len(sys.argv), '--vmaf-phone-model')
+    #out_fmt = get_cmd_option(sys.argv, 6, len(sys.argv), '--out-fmt')
 
     pool_method = get_cmd_option(sys.argv, 3, len(sys.argv), '--pool')
     if not (pool_method is None

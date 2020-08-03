@@ -10,7 +10,7 @@ import numpy as np
 
 from vmaf.config import VmafConfig, DisplayConfig
 from vmaf.core.asset import Asset
-from vmaf.core.quality_runner import VmafQualityRunner
+from vmaf.core.quality_runner import VmafQualityRunner,PsnrQualityRunner
 from vmaf.tools.misc import get_file_name_without_extension, get_cmd_option, \
     cmd_option_exists
 from vmaf.tools.stats import ListStats
@@ -25,7 +25,7 @@ POOL_METHODS = ['mean', 'harmonic_mean', 'min', 'median', 'perc5', 'perc10', 'pe
 
 def print_usage():
     print("usage: " + os.path.basename(sys.argv[0]) \
-          + " fmt width height ref_path dis_path [--model model_path] [--out-fmt out_fmt] " \
+          + " fmt width height ref_path dis_path [--model model_path] [--out-fmt out_fmt] [--attention obj_file]" \
             "[--phone-model] [--ci] [--save-plot plot_dir]\n")
     print("fmt:\n\t" + "\n\t".join(FMTS) + "\n")
     print("out_fmt:\n\t" + "\n\t".join(OUT_FMTS) + "\n")
@@ -56,6 +56,7 @@ def main():
         return 2
 
     model_path = get_cmd_option(sys.argv, 6, len(sys.argv), '--model')
+    obj_file = get_cmd_option(sys.argv, 6, len(sys.argv), '--attention')
 
     out_fmt = get_cmd_option(sys.argv, 6, len(sys.argv), '--out-fmt')
     if not (out_fmt is None
@@ -89,6 +90,7 @@ def main():
                   workdir_root=VmafConfig.workdir_path(),
                   ref_path=ref_file,
                   dis_path=dis_file,
+                  obj_path=obj_file,
                   asset_dict={'width':width, 'height':height, 'yuv_type':fmt}
                   )
     assets = [asset]
@@ -101,6 +103,7 @@ def main():
         runner_class = BootstrapVmafQualityRunner
     else:
         runner_class = VmafQualityRunner
+        #runner_class=PsnrQualityRunner
 
     if model_path is None:
         optional_dict = None
