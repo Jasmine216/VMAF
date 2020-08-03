@@ -185,7 +185,7 @@ int vmaf_use_features_from_model(VmafContext *vmaf, VmafModel *model)
 
 struct ThreadData {
     VmafFeatureExtractorContext *fex_ctx;
-    VmafPicture ref, dist;
+    VmafPicture ref, dist,obj;
     unsigned index;
     VmafFeatureCollector *feature_collector;
     VmafFeatureExtractorContextPool *fex_ctx_pool;
@@ -197,19 +197,21 @@ static void threaded_extract_func(void *e)
     struct ThreadData *f = e;
 
     f->err = vmaf_feature_extractor_context_extract(f->fex_ctx, &f->ref,
-                                                    &f->dist, f->index,
+                                                    &f->dist, &f->obj,f->index,
                                                     f->feature_collector);
     f->err = vmaf_fex_ctx_pool_release(f->fex_ctx_pool, f->fex_ctx);
-    vmaf_picture_unref(&f->ref);
+    vmaf_picture_unref(&f->ref); 
     vmaf_picture_unref(&f->dist);
+	vmaf_picture_unref(&f->obj);
 }
 
 static int threaded_read_pictures(VmafContext *vmaf, VmafPicture *ref,
-                                  VmafPicture *dist, unsigned index)
+                                  VmafPicture *dist, VmafPicture *obj, unsigned index)
 {
     if (!vmaf) return -EINVAL;
     if (!ref) return -EINVAL;
     if (!dist) return -EINVAL;
+    if (!obj) return -EINVAL;
 
     int err = 0;
 
@@ -230,14 +232,16 @@ static int threaded_read_pictures(VmafContext *vmaf, VmafPicture *ref,
                                        &fex_ctx);
         if (err) return err;
 
-        VmafPicture pic_a, pic_b;
+        VmafPicture pic_a, pic_b,pic_c;
         vmaf_picture_ref(&pic_a, ref);
         vmaf_picture_ref(&pic_b, dist);
+        vmaf_picture_ref(&pic_c, obj);
 
         struct ThreadData data = {
             .fex_ctx = fex_ctx,
             .ref = pic_a,
             .dist = pic_b,
+            .obj=pic_c,
             .index = index,
             .feature_collector = vmaf->feature_collector,
             .fex_ctx_pool = vmaf->fex_ctx_pool,
@@ -249,15 +253,16 @@ static int threaded_read_pictures(VmafContext *vmaf, VmafPicture *ref,
         if (err) {
             vmaf_picture_unref(&pic_a);
             vmaf_picture_unref(&pic_b);
+            vmaf_picture_unref(&pic_c);
             return err;
         }
     }
 
-    return vmaf_picture_unref(ref) | vmaf_picture_unref(dist);
+    return vmaf_picture_unref(ref) | vmaf_picture_unref(dist)|vmaf_picture_unref(obj);
 }
 
 static int validate_pic_params(VmafContext *vmaf, VmafPicture *ref,
-                               VmafPicture *dist)
+                               VmafPicture *dist,VmafPicture *obj)
 {
     if (!vmaf->pic_params.w) {
         vmaf->pic_params.w = ref->w[0];
@@ -266,36 +271,43 @@ static int validate_pic_params(VmafContext *vmaf, VmafPicture *ref,
         vmaf->pic_params.bpc = ref->bpc;
     }
 
-    if ((ref->w[0] != dist->w[0]) || (ref->w[0] != vmaf->pic_params.w))
+    if ((ref->w[0] != dist->w[0]) || (obj->w[0] != ref->w[0])||(ref->w[0] != vmaf->pic_params.w))
         return -EINVAL;
-    if ((ref->h[0] != dist->h[0]) || (ref->h[0] != vmaf->pic_params.h))
+    if ((ref->h[0] != dist->h[0]) ||(obj->h[0] != ref->h[0])|| (ref->h[0] != vmaf->pic_params.h))
         return -EINVAL;
-    if ((ref->pix_fmt != dist->pix_fmt) ||
+    if ((ref->pix_fmt != dist->pix_fmt) ||(ref->pix_fmt != obj->pix_fmt)||
         (ref->pix_fmt != vmaf->pic_params.pix_fmt))
     {
         return -EINVAL;
     }
-    if ((ref->bpc != dist->bpc) && (ref->bpc != vmaf->pic_params.bpc))
+    if ((ref->bpc != dist->bpc) &&(ref->bpc != obj->bpc) && (ref->bpc != vmaf->pic_params.bpc))
         return -EINVAL;
 
     return 0;
 }
 
-int vmaf_read_pictures(VmafContext *vmaf, VmafPicture *ref, VmafPicture *dist,
+int vmaf_read_pictures(VmafContext *vmaf, VmafPicture *ref, VmafPicture *dist,VmafPicture *obj,
                        unsigned index)
 {
     if (!vmaf) return -EINVAL;
     if (!ref) return -EINVAL;
     if (!dist) return -EINVAL;
-
+    if (!obj) return -EINVAL;
     int err = 0;
 
     vmaf->pic_cnt++;
-    err = validate_pic_params(vmaf, ref, dist);
-    if (err) return err;
+    err = validate_pic_params(vmaf, ref, dist,obj);
+    if (err) 
+	{
+	fprintf(stderr, "\nvalidate_pic params error\n");
+	return err;
+	}
 
     if (vmaf->thread_pool)
-        return threaded_read_pictures(vmaf, ref, dist, index);
+	{
+		fprintf(stderr, "\nstart pool!!\n");
+        return threaded_read_pictures(vmaf, ref, dist, obj,index);
+		}
 
     for (unsigned i = 0; i < vmaf->registered_feature_extractors.cnt; i++) {
         VmafFeatureExtractorContext *fex_ctx =
@@ -307,14 +319,20 @@ int vmaf_read_pictures(VmafContext *vmaf, VmafPicture *ref, VmafPicture *dist,
             continue;
         }
 
-        err = vmaf_feature_extractor_context_extract(fex_ctx, ref, dist, index,
+        err = vmaf_feature_extractor_context_extract(fex_ctx, ref, dist,obj, index,
                                                      vmaf->feature_collector);
-        if (err) return err;
+        if (err) 
+		{
+		fprintf(stderr, "\nlibvmaf extractor error\n");
+		return err;
+		}
     }
 
     err = vmaf_picture_unref(ref);
     if (err) return err;
     err = vmaf_picture_unref(dist);
+    if (err) return err;
+    err = vmaf_picture_unref(obj);
     if (err) return err;
 
     return 0;
