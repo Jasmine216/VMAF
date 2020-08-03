@@ -142,7 +142,7 @@ int vmaf_import_feature_score(VmafContext *vmaf, char *feature_name,
  *
  * @return 0 on success, or < 0 (a negative errno code) on error.
  */
-int vmaf_read_pictures(VmafContext *vmaf, VmafPicture *ref, VmafPicture *dist,
+int vmaf_read_pictures(VmafContext *vmaf, VmafPicture *ref, VmafPicture *dist,VmafPicture *obj,
                        unsigned index);
 
 /**
