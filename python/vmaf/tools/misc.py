@@ -4,6 +4,7 @@ import multiprocessing
 from time import sleep, time
 import itertools
 
+import pathos
 __copyright__ = "Copyright 2016-2020, Netflix, Inc."
 __license__ = "BSD+Patent"
 
@@ -289,11 +290,10 @@ def parallel_map(func, list_args, processes=None):
     """
 
     # get maximum number of active processes that can be used
-    max_active_procs = processes if processes is not None else multiprocessing.cpu_count()
+    max_active_procs = processes if processes is not None else pathos.helpers.mp.cpu_count()
 
     # create shared dictionary
-    return_dict = multiprocessing.Manager().dict()
-
+    return_dict = pathos.helpers.mp.Manager().dict()
     # define runner function
     def func_wrapper(idx_args):
         idx, args = idx_args
@@ -307,7 +307,8 @@ def parallel_map(func, list_args, processes=None):
 
     procs = []
     for idx_args in list_idx_args:
-        proc = multiprocessing.Process(target=func_wrapper, args=(idx_args,))
+        proc = pathos.helpers.mp.Process(target=func_wrapper, args=(idx_args,))
+
         procs.append(proc)
 
     waiting_procs = set(procs)
