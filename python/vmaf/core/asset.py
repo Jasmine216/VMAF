@@ -44,7 +44,7 @@ class Asset(WorkdirEnabled):
     # ==== constructor ====
 
     def __init__(self, dataset, content_id, asset_id,
-                 ref_path, dis_path,
+                 ref_path, dis_path,obj_path,
                  asset_dict,
                  workdir_root=VmafConfig.workdir_path()):
         """
@@ -63,6 +63,7 @@ class Asset(WorkdirEnabled):
         self.asset_id = asset_id
         self.ref_path = ref_path
         self.dis_path = dis_path
+        self.obj_path = obj_path
         self.asset_dict = asset_dict
 
         self._assert()
@@ -106,11 +107,12 @@ class Asset(WorkdirEnabled):
         asset_id = kwargs['asset_id'] if 'asset_id' in kwargs else self.asset_id
         ref_path = kwargs['ref_path'] if 'ref_path' in kwargs else self.ref_path
         dis_path = kwargs['dis_path'] if 'dis_path' in kwargs else self.dis_path
+        obj_path = kwargs['obj_path'] if 'obj_path' in kwargs else self.obj_path
         workdir_root = kwargs['workdir_root'] if 'workdir_root' in kwargs else self.workdir_root
 
         new_asset = self.__class__(dataset, content_id, asset_id,
-                                   ref_path, dis_path, new_asset_dict,
-                                   workdir_root)
+                                   ref_path, dis_path,new_asset_dict,
+                                   workdir_root,obj_path=obj_path)
         return new_asset
 
     @staticmethod
@@ -126,6 +128,7 @@ class Asset(WorkdirEnabled):
         assert 'asset_id' in d
         assert 'ref_path' in d
         assert 'dis_path' in d
+        assert 'obj_path' in d
         assert 'asset_dict' in d
 
         return Asset(dataset=d['dataset'],
@@ -133,6 +136,7 @@ class Asset(WorkdirEnabled):
                      asset_id=d['asset_id'],
                      ref_path=d['ref_path'],
                      dis_path=d['dis_path'],
+                     obj_path=d['obj_path'],
                      asset_dict=d['asset_dict']
                      )
 
@@ -550,6 +554,13 @@ class Asset(WorkdirEnabled):
             return self.dis_path
         else:
             return os.path.join(self.workdir, f"dis_{str(self)}")
+
+    @property
+    def obj_workfile_path(self):
+        if self.use_path_as_workpath:
+            return self.obj_path
+        else:
+            return os.path.join(self.workdir, f"obj_{str(self)}")
 
     # ==== procfile ====
     @property

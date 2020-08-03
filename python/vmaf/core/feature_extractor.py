@@ -186,6 +186,7 @@ class VmafFeatureExtractor(VmafrcFeatureExtractorMixin, FeatureExtractor):
         yuv_type=self._get_workfile_yuv_type(asset)
         ref_path=asset.ref_procfile_path
         dis_path=asset.dis_procfile_path
+        obj_path = asset.obj_path
         w=quality_width
         h=quality_height
         logger = self.logger
@@ -196,7 +197,7 @@ class VmafFeatureExtractor(VmafrcFeatureExtractorMixin, FeatureExtractor):
                 'float_adm': {'debug': True},
                 'float_vif': {'debug': True},
                 'float_motion': {'debug': True},
-            }
+            },obj_path=obj_path
         )
 
     @classmethod
@@ -419,11 +420,12 @@ class PsnrFeatureExtractor(VmafrcFeatureExtractorMixin, FeatureExtractor):
         yuv_type=self._get_workfile_yuv_type(asset)
         ref_path=asset.ref_procfile_path
         dis_path=asset.dis_procfile_path
+        obj_path=asset.obj_path
         w=quality_width
         h=quality_height
         logger = self.logger
 
-        ExternalProgramCaller.call_vmafrc_single_feature('float_psnr', yuv_type, ref_path, dis_path, w, h, log_file_path, logger)
+        ExternalProgramCaller.call_vmafrc_single_feature('float_psnr', yuv_type, ref_path, dis_path,w, h, log_file_path, logger,obj_path=obj_path)
 
 
 class MomentFeatureExtractor(FeatureExtractor):

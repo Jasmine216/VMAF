@@ -155,6 +155,7 @@ class Result(BasicResult):
         'scores_key',
         'scores' # one score per unit - frame, chunk or else
     )
+	
 
     def __init__(self, asset, executor_id, result_dict):
         super(Result, self).__init__(asset, result_dict)
@@ -440,42 +441,8 @@ class Result(BasicResult):
         """
         return json.dumps(self.to_dict(), sort_keys=False, indent=4)
 
+
     def to_dataframe(self):
-        """
-        Export to pandas dataframe with columns: dataset, content_id, asset_id,
-        ref_name, dis_name, asset, executor_id, scores_key, scores
-        Example:
-                                                       asset  asset_id  content_id  \
-        0  {"asset_dict": {"height": 1080, "width": 1920}...         0           0
-        1  {"asset_dict": {"height": 1080, "width": 1920}...         0           0
-        2  {"asset_dict": {"height": 1080, "width": 1920}...         0           0
-        3  {"asset_dict": {"height": 1080, "width": 1920}...         0           0
-        4  {"asset_dict": {"height": 1080, "width": 1920}...         0           0
-
-          dataset                             dis_name executor_id  \
-        0    test  checkerboard_1920_1080_10_3_1_0.yuv   VMAF_V0.1
-        1    test  checkerboard_1920_1080_10_3_1_0.yuv   VMAF_V0.1
-        2    test  checkerboard_1920_1080_10_3_1_0.yuv   VMAF_V0.1
-        3    test  checkerboard_1920_1080_10_3_1_0.yuv   VMAF_V0.1
-        4    test  checkerboard_1920_1080_10_3_1_0.yuv   VMAF_V0.1
-
-                                      ref_name  \
-        0  checkerboard_1920_1080_10_3_0_0.yuv
-        1  checkerboard_1920_1080_10_3_0_0.yuv
-        2  checkerboard_1920_1080_10_3_0_0.yuv
-        3  checkerboard_1920_1080_10_3_0_0.yuv
-        4  checkerboard_1920_1080_10_3_0_0.yuv
-
-                                                  scores          scores_key
-        0                  [0.798588, 0.84287, 0.800122]     VMAF_adm_scores
-        1               [12.420815, 12.41775, 12.416308]   VMAF_ansnr_scores
-        2                    [0.0, 18.489031, 18.542355]  VMAF_motion_scores
-        3  [42.1117149479, 47.6544689539, 40.6168118533]         VMAF_scores
-        4                 [0.156106, 0.156163, 0.156119]     VMAF_vif_scores
-
-        [5 rows x 9 columns]
-        :return:
-        """
         import pandas as pd
         asset = self.asset
         executor_id = self.executor_id
@@ -497,9 +464,7 @@ class Result(BasicResult):
 
         # zip rows into a dict, and wrap with df
         df = pd.DataFrame(dict(zip(self.DATAFRAME_COLUMNS, zip(*rows))))
-
         return df
-
     @classmethod
     def from_dataframe(cls, df):
 
